@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, FileText, BarChart3, Database, History, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Bookmark, FileText, BarChart3, Database, History, TrendingUp, AlertTriangle, Download } from 'lucide-react';
 
 export type NavTab = 'dashboard' | 'analysis' | 'market_data' | 'history' | 'report';
 
@@ -8,6 +8,7 @@ interface HeaderProps {
   onTabChange: (tab: NavTab) => void;
   onOpenReport: () => void;
   onOpenSaveModal: () => void;
+  onExportCSV?: () => void;
   savedCount: number;
 }
 
@@ -16,6 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   onTabChange,
   onOpenReport,
   onOpenSaveModal,
+  onExportCSV,
   savedCount,
 }) => {
   return (
@@ -122,6 +124,16 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Zone 3: Primary Actions */}
           <div className="flex items-center gap-2">
+            {onExportCSV && (
+              <button
+                onClick={onExportCSV}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-colors shadow-xs whitespace-nowrap cursor-pointer"
+                title="현재 시나리오와 분석 데이터를 Excel 호환 CSV 파일로 내보냅니다"
+              >
+                <Download className="w-3.5 h-3.5 text-red-600" />
+                <span>CSV 내보내기</span>
+              </button>
+            )}
             <button
               onClick={onOpenSaveModal}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-colors shadow-xs whitespace-nowrap cursor-pointer"

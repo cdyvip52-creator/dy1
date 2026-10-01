@@ -18,7 +18,8 @@ import { MarketDataService, CURRENT_KOSPI_INDEX } from './services/marketDataSer
 import { ValuationService } from './services/valuationService';
 import { OutlookCalculator, DEFAULT_ASSUMPTIONS } from './services/outlookCalculator';
 import { StorageService } from './services/storageService';
-import { Sliders, TrendingUp, Info } from 'lucide-react';
+import { CsvExportService } from './services/csvExportService';
+import { Sliders, TrendingUp, Download, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
@@ -27,6 +28,7 @@ export default function App() {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [outlooks, setOutlooks] = useState<SavedOutlook[]>(() => StorageService.getOutlooks());
   const [chartMode, setChartMode] = useState<'forecast' | 'history5y'>('forecast');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const currentKospi = CURRENT_KOSPI_INDEX;
   const currentChange = 22.80;
@@ -58,6 +60,23 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
+  const handleExportCSV = () => {
+    const success = CsvExportService.downloadScenarioCSV({
+      currentKospi,
+      currentChange,
+      currentChangePercent,
+      assumptions,
+      scenarios,
+      factors,
+      commentary,
+      currentPer: valuation.fwdPer,
+    });
+    if (success) {
+      setToastMessage('KOSPI 시나리오 및 분석 결과가 CSV 파일로 다운로드되었습니다.');
+      setTimeout(() => setToastMessage(null), 3500);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/80 text-slate-900 flex flex-col font-sans">
       {/* 3-Zone Header */}
@@ -72,6 +91,7 @@ export default function App() {
         }}
         onOpenReport={() => setIsReportOpen(true)}
         onOpenSaveModal={() => setIsSaveModalOpen(true)}
+        onExportCSV={handleExportCSV}
         savedCount={outlooks.length}
       />
 
@@ -165,14 +185,22 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setActiveTab('analysis')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200 cursor-pointer"
                 >
                   <Sliders className="w-3.5 h-3.5" />
                   <span>가정 상세 수정하기</span>
                 </button>
                 <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                  title="현재 KOSPI 전망 및 시나리오 데이터를 CSV 파일로 다운로드합니다"
+                >
+                  <Download className="w-3.5 h-3.5 text-red-600" />
+                  <span>CSV 다운로드</span>
+                </button>
+                <button
                   onClick={() => setIsReportOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
                 >
                   <span>1페이지 보고서 보기</span>
                 </button>
@@ -248,6 +276,7 @@ export default function App() {
         assumptions={assumptions}
         commentary={commentary}
         currentPer={valuation.fwdPer}
+        onExportCSV={handleExportCSV}
       />
 
       {/* Save Outlook Modal */}
@@ -260,6 +289,14 @@ export default function App() {
         commentary={commentary}
         onSaved={refreshOutlooks}
       />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="no-print fixed bottom-6 right-6 z-50 bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-2.5 text-xs transition-all">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="font-medium">{toastMessage}</span>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="no-print bg-white border-t border-slate-200 mt-12 py-6 text-xs text-slate-500">

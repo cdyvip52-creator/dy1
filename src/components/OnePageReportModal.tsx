@@ -15,6 +15,7 @@ interface OnePageReportModalProps {
   assumptions: OutlookAssumptions;
   commentary: AutomatedCommentary;
   currentPer: number;
+  onExportCSV?: () => void;
 }
 
 export const OnePageReportModal: React.FC<OnePageReportModalProps> = ({
@@ -25,6 +26,7 @@ export const OnePageReportModal: React.FC<OnePageReportModalProps> = ({
   assumptions,
   commentary,
   currentPer,
+  onExportCSV,
 }) => {
   if (!isOpen) return null;
 
@@ -53,6 +55,16 @@ export const OnePageReportModal: React.FC<OnePageReportModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onExportCSV && (
+              <button
+                onClick={onExportCSV}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg transition-colors cursor-pointer shadow-xs border border-slate-700"
+                title="시나리오 및 분석 데이터를 CSV 파일로 다운로드합니다"
+              >
+                <Download className="w-3.5 h-3.5 text-red-400" />
+                <span>CSV 데이터 다운로드</span>
+              </button>
+            )}
             <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors cursor-pointer shadow-xs"
