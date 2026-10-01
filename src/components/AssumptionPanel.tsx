@@ -1,7 +1,7 @@
 import React from 'react';
-import { RotateCcw, Sliders, TrendingUp, DollarSign, Layers } from 'lucide-react';
+import { RotateCcw, Sliders, TrendingUp, DollarSign, Layers, Zap } from 'lucide-react';
 import { OutlookAssumptions } from '../types/market';
-import { DEFAULT_ASSUMPTIONS } from '../services/outlookCalculator';
+import { DEFAULT_ASSUMPTIONS, OutlookCalculator } from '../services/outlookCalculator';
 import { FlowDataService } from '../services/flowDataService';
 
 interface AssumptionPanelProps {
@@ -17,6 +17,13 @@ export const AssumptionPanel: React.FC<AssumptionPanelProps> = ({
   onReset,
   currentKospi,
 }) => {
+  const impliedCurrentEps = Math.round(currentKospi / assumptions.basePer);
+  const minEps = Math.max(100, Math.round(impliedCurrentEps * 0.6));
+  const maxEps = Math.round(impliedCurrentEps * 1.6);
+  const baseGrowthEps = Math.round(impliedCurrentEps * 1.15);
+  const boomEps = Math.round(impliedCurrentEps * 1.3);
+  const bearEpsBound = Math.round(impliedCurrentEps * 0.85);
+
   const update = <K extends keyof OutlookAssumptions>(key: K, value: OutlookAssumptions[K]) => {
     onChange({
       ...assumptions,
@@ -24,43 +31,55 @@ export const AssumptionPanel: React.FC<AssumptionPanelProps> = ({
     });
   };
 
-  // Preset scenarios
+  const handleSyncToLive = () => {
+    const autoEps = Math.round(impliedCurrentEps * (1 + assumptions.epsGrowthRate / 100));
+    update('expectedEps', autoEps);
+  };
+
+  // Preset scenarios dynamically scaled to real-time KOSPI
   const applyPreset = (presetName: string) => {
     switch (presetName) {
       case 'base':
-        onChange({ ...DEFAULT_ASSUMPTIONS });
+        onChange({
+          ...assumptions,
+          expectedEps: baseGrowthEps,
+          epsGrowthRate: 15.0,
+          bullPer: 11.5,
+          basePer: 10.5,
+          bearPer: 9.2,
+        });
         break;
       case 'semi_boom':
         onChange({
           ...assumptions,
-          expectedEps: 375,
+          expectedEps: boomEps,
           epsGrowthRate: 22.0,
           bullPer: 12.0,
           basePer: 11.0,
           bearPer: 9.6,
           us10Y: 3.95,
-          usdKrw: 1340,
+          usdKrw: Math.max(1250, assumptions.usdKrw - 35),
           foreignFlow20D: 45000,
         });
         break;
       case 'rate_spike':
         onChange({
           ...assumptions,
-          expectedEps: 335,
+          expectedEps: Math.round(impliedCurrentEps * 1.06),
           epsGrowthRate: 8.0,
           bullPer: 10.8,
           basePer: 9.8,
           bearPer: 8.6,
           us10Y: 4.55,
-          usdKrw: 1415,
+          usdKrw: assumptions.usdKrw + 25,
           foreignFlow20D: -12000,
         });
         break;
       case 'fx_stress':
         onChange({
           ...assumptions,
-          expectedEps: 330,
-          epsGrowthRate: 6.0,
+          expectedEps: bearEpsBound,
+          epsGrowthRate: 5.0,
           bullPer: 10.5,
           basePer: 9.5,
           bearPer: 8.5,
@@ -140,12 +159,24 @@ export const AssumptionPanel: React.FC<AssumptionPanelProps> = ({
 
       {/* Section 1: 기업이익 (EPS) */}
       <div className="space-y-4 pt-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-red-600" />
             1. 기업이익 (Earnings Assumptions)
           </span>
-          <span className="text-[11px] text-slate-400">현재 선행 EPS 345원 수준</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-500 font-tabular">
+              실시간 KOSPI({currentKospi.toLocaleString()}pt) 내재 EPS: <strong className="text-slate-800">{impliedCurrentEps.toLocaleString()}원</strong>
+            </span>
+            <button
+              onClick={handleSyncToLive}
+              className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors cursor-pointer"
+              title="현재 실시간 KOSPI 지수와 설정된 성장률에 맞춰 예상 EPS를 자동 산출합니다"
+            >
+              <Zap className="w-3 h-3 text-red-600" />
+              <span>실시간 동기화</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/60 p-3.5 rounded-lg border border-slate-200/60">
@@ -157,20 +188,20 @@ export const AssumptionPanel: React.FC<AssumptionPanelProps> = ({
                 <input
                   id="expected-eps-input"
                   type="number"
-                  min="250"
-                  max="450"
+                  min={minEps}
+                  max={maxEps}
                   step="1"
                   value={assumptions.expectedEps}
-                  onChange={(e) => update('expectedEps', Math.max(100, Number(e.target.value) || 0))}
-                  className="w-20 px-2 py-0.5 text-right font-bold text-xs bg-white border border-slate-300 rounded font-tabular focus:outline-red-500"
+                  onChange={(e) => update('expectedEps', Math.max(10, Number(e.target.value) || 0))}
+                  className="w-24 px-2 py-0.5 text-right font-bold text-xs bg-white border border-slate-300 rounded font-tabular focus:outline-red-500"
                 />
                 <span className="text-slate-500 text-xs">원</span>
               </div>
             </div>
             <input
               type="range"
-              min="280"
-              max="420"
+              min={minEps}
+              max={maxEps}
               step="1"
               value={assumptions.expectedEps}
               onChange={(e) => update('expectedEps', Number(e.target.value))}
@@ -178,9 +209,9 @@ export const AssumptionPanel: React.FC<AssumptionPanelProps> = ({
               className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-red-600"
             />
             <div className="flex justify-between text-[10px] text-slate-400 font-tabular">
-              <span>280원 (약세)</span>
-              <span>350원 (기준)</span>
-              <span>420원 (호황)</span>
+              <span>{minEps.toLocaleString()}원 (하단)</span>
+              <span>{baseGrowthEps.toLocaleString()}원 (기준 +15%)</span>
+              <span>{maxEps.toLocaleString()}원 (상단)</span>
             </div>
           </div>
 

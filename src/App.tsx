@@ -60,16 +60,27 @@ export default function App() {
         ).padStart(2, '0')}:${String(dateObj.getSeconds()).padStart(2, '0')}`;
         setLastUpdatedStr(timeStr);
 
-        // Auto-sync real-time macro assumptions
-        setAssumptions((prev) => ({
-          ...prev,
-          usdKrw: summary.macro.usdKrw.current,
-          us10Y: summary.macro.us10Y.current,
-          wti: summary.macro.wti.current,
-        }));
+        // Auto-sync real-time macro assumptions & dynamic live EPS
+        setAssumptions((prev) => {
+          const liveKospi = summary.kospi.current;
+          const impliedCurrentEps = Math.round(liveKospi / prev.basePer);
+          // If expectedEps is still on the old static default (<500), auto-calibrate to live index
+          const expectedEps =
+            prev.expectedEps < 500
+              ? Math.round(impliedCurrentEps * (1 + prev.epsGrowthRate / 100))
+              : prev.expectedEps;
+
+          return {
+            ...prev,
+            expectedEps,
+            usdKrw: summary.macro.usdKrw.current,
+            us10Y: summary.macro.us10Y.current,
+            wti: summary.macro.wti.current,
+          };
+        });
 
         if (showToast) {
-          setToastMessage(`실시간 금융 시세가 최신 데이터로 갱신되었습니다. (수신: ${timeStr})`);
+          setToastMessage(`실시간 금융 시세 및 전망 계산이 최신 데이터로 갱신되었습니다. (수신: ${timeStr})`);
           setTimeout(() => setToastMessage(null), 3500);
         }
       }
@@ -102,13 +113,13 @@ export default function App() {
 
   // Real-time calculated factor evaluation
   const factors = useMemo(() => {
-    return OutlookCalculator.evaluateFactors(assumptions);
-  }, [assumptions]);
+    return OutlookCalculator.evaluateFactors(assumptions, currentKospi, liveSummary);
+  }, [assumptions, currentKospi, liveSummary]);
 
   // Real-time generated research commentary
   const commentary = useMemo(() => {
-    return OutlookCalculator.generateCommentary(currentKospi, assumptions, scenarios);
-  }, [currentKospi, assumptions, scenarios]);
+    return OutlookCalculator.generateCommentary(currentKospi, assumptions, scenarios, liveSummary);
+  }, [currentKospi, assumptions, scenarios, liveSummary]);
 
   const refreshOutlooks = () => {
     setOutlooks(StorageService.getOutlooks());
