@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, FileText, BarChart3, Database, History, TrendingUp, AlertTriangle, Download } from 'lucide-react';
+import { Bookmark, FileText, BarChart3, Database, History, TrendingUp, Download, RefreshCw, Radio } from 'lucide-react';
 
 export type NavTab = 'dashboard' | 'analysis' | 'market_data' | 'history' | 'report';
 
@@ -9,6 +9,10 @@ interface HeaderProps {
   onOpenReport: () => void;
   onOpenSaveModal: () => void;
   onExportCSV?: () => void;
+  onRefreshLive?: () => void;
+  isRefreshing?: boolean;
+  isLive?: boolean;
+  lastUpdated?: string;
   savedCount: number;
 }
 
@@ -18,18 +22,44 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenReport,
   onOpenSaveModal,
   onExportCSV,
+  onRefreshLive,
+  isRefreshing = false,
+  isLive = true,
+  lastUpdated,
   savedCount,
 }) => {
   return (
     <header className="no-print sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
-      {/* Top Warning Ribbon for Demo Data */}
-      <div className="bg-amber-50 border-b border-amber-200 px-4 py-1 text-xs text-amber-900 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-          <span className="font-semibold">데모 데이터 알림:</span>
-          <span>현재 실제 외부 금융 API 연결 전 단계로, 가상의 시뮬레이션 데이터가 적용되어 있습니다.</span>
+      {/* Top Real-time Financial Data Feed Ribbon */}
+      <div className="bg-slate-900 text-slate-200 px-4 py-1.5 text-xs flex flex-wrap items-center justify-between gap-2 border-b border-slate-800">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 font-semibold text-[11px]">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>{isLive ? '실시간 금융 API 연동' : '로컬 기준 데이터'}</span>
+          </div>
+          <span className="text-slate-400 text-[11px] hidden sm:inline">
+            글로벌 증시·국채·환율·원자재 실시간 시세 반영
+          </span>
         </div>
-        <span className="text-amber-800 text-[11px] hidden sm:inline">실제 투자판단의 최종 책임은 본인에게 있습니다.</span>
+
+        <div className="flex items-center gap-3 text-[11px] text-slate-300">
+          {lastUpdated && (
+            <span className="font-tabular text-slate-400 hidden md:inline">
+              수신: {lastUpdated}
+            </span>
+          )}
+          {onRefreshLive && (
+            <button
+              onClick={onRefreshLive}
+              disabled={isRefreshing}
+              className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white transition-colors cursor-pointer border border-slate-700 disabled:opacity-50"
+              title="외부 금융 API 실시간 시세를 즉시 재조회합니다"
+            >
+              <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin text-red-400' : 'text-slate-400'}`} />
+              <span>{isRefreshing ? '조회중...' : '시세 새로고침'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Main Nav Bar (Strict 3-Zone Contract) */}

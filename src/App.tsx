@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Header, NavTab } from './components/Header';
 import { TopMetricsBanner } from './components/TopMetricsBanner';
 import { MarketVariableCards } from './components/MarketVariableCards';
@@ -13,8 +13,12 @@ import { OutlookHistoryView } from './components/OutlookHistoryView';
 import { OnePageReportModal } from './components/OnePageReportModal';
 import { SaveOutlookModal } from './components/SaveOutlookModal';
 
-import { OutlookAssumptions, SavedOutlook } from './types/market';
-import { MarketDataService, CURRENT_KOSPI_INDEX } from './services/marketDataService';
+import { OutlookAssumptions, SavedOutlook, HistoricalPricePoint } from './types/market';
+import {
+  MarketDataService,
+  CURRENT_KOSPI_INDEX,
+  LiveMarketSummary,
+} from './services/marketDataService';
 import { ValuationService } from './services/valuationService';
 import { OutlookCalculator, DEFAULT_ASSUMPTIONS } from './services/outlookCalculator';
 import { StorageService } from './services/storageService';
@@ -30,11 +34,66 @@ export default function App() {
   const [chartMode, setChartMode] = useState<'forecast' | 'history5y'>('forecast');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const currentKospi = CURRENT_KOSPI_INDEX;
-  const currentChange = 22.80;
-  const currentChangePercent = 0.65;
-  const historicalData = useMemo(() => MarketDataService.getHistoricalKospi(), []);
+  // Live Financial Market API states
+  const [liveSummary, setLiveSummary] = useState<LiveMarketSummary | null>(null);
+  const [isLiveRefreshing, setIsLiveRefreshing] = useState(false);
+  const [lastUpdatedStr, setLastUpdatedStr] = useState<string>('');
+  const [historicalData, setHistoricalData] = useState<HistoricalPricePoint[]>(() =>
+    MarketDataService.getHistoricalKospi()
+  );
+
+  const currentKospi = liveSummary?.kospi.current ?? CURRENT_KOSPI_INDEX;
+  const currentChange = liveSummary?.kospi.change ?? 22.80;
+  const currentChangePercent = liveSummary?.kospi.changePercent ?? 0.65;
   const valuation = useMemo(() => ValuationService.getValuation(), []);
+
+  // Fetch live market data from server proxy
+  const loadLiveData = async (showToast = false) => {
+    setIsLiveRefreshing(true);
+    try {
+      const summary = await MarketDataService.fetchLiveSummary();
+      if (summary) {
+        setLiveSummary(summary);
+        const dateObj = new Date(summary.updatedAt || Date.now());
+        const timeStr = `${String(dateObj.getHours()).padStart(2, '0')}:${String(
+          dateObj.getMinutes()
+        ).padStart(2, '0')}:${String(dateObj.getSeconds()).padStart(2, '0')}`;
+        setLastUpdatedStr(timeStr);
+
+        // Auto-sync real-time macro assumptions
+        setAssumptions((prev) => ({
+          ...prev,
+          usdKrw: summary.macro.usdKrw.current,
+          us10Y: summary.macro.us10Y.current,
+          wti: summary.macro.wti.current,
+        }));
+
+        if (showToast) {
+          setToastMessage(`실시간 금융 시세가 최신 데이터로 갱신되었습니다. (수신: ${timeStr})`);
+          setTimeout(() => setToastMessage(null), 3500);
+        }
+      }
+
+      // Fetch live historical price points for chart
+      const liveHistory = await MarketDataService.fetchLiveHistory('6mo');
+      if (liveHistory && liveHistory.length > 0) {
+        setHistoricalData(liveHistory);
+      }
+    } catch (e) {
+      console.error('Failed to load live market data:', e);
+    } finally {
+      setIsLiveRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLiveData(false);
+    // Poll every 60 seconds
+    const interval = setInterval(() => {
+      loadLiveData(false);
+    }, 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Real-time calculated scenarios
   const scenarios = useMemo(() => {
@@ -92,6 +151,10 @@ export default function App() {
         onOpenReport={() => setIsReportOpen(true)}
         onOpenSaveModal={() => setIsSaveModalOpen(true)}
         onExportCSV={handleExportCSV}
+        onRefreshLive={() => loadLiveData(true)}
+        isRefreshing={isLiveRefreshing}
+        isLive={!!liveSummary}
+        lastUpdated={lastUpdatedStr}
         savedCount={outlooks.length}
       />
 
@@ -255,7 +318,13 @@ export default function App() {
         )}
 
         {/* VIEW 3: 시장 데이터 (Market Data A~H) */}
-        {activeTab === 'market_data' && <MarketDataView />}
+        {activeTab === 'market_data' && (
+          <MarketDataView
+            liveSummary={liveSummary}
+            onRefresh={() => loadLiveData(true)}
+            isRefreshing={isLiveRefreshing}
+          />
+        )}
 
         {/* VIEW 4: 전망 기록 및 사후 검증 (History & Post-Verification) */}
         {activeTab === 'history' && (

@@ -1,22 +1,88 @@
 import React, { useState } from 'react';
-import { MarketDataService } from '../services/marketDataService';
+import { MarketDataService, LiveMarketSummary } from '../services/marketDataService';
 import { EarningsDataService } from '../services/earningsDataService';
 import { ValuationService } from '../services/valuationService';
 import { MacroDataService } from '../services/macroDataService';
 import { FlowDataService } from '../services/flowDataService';
-import { Layers, ArrowUpRight, ArrowDownRight, Minus, AlertCircle } from 'lucide-react';
+import { Layers, ArrowUpRight, ArrowDownRight, Minus, AlertCircle, RefreshCw, Radio } from 'lucide-react';
 
-export const MarketDataView: React.FC = () => {
+interface MarketDataViewProps {
+  liveSummary?: LiveMarketSummary | null;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
+}
+
+export const MarketDataView: React.FC<MarketDataViewProps> = ({
+  liveSummary,
+  onRefresh,
+  isRefreshing = false,
+}) => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
 
-  const indices = MarketDataService.getIndices();
+  const baseIndices = MarketDataService.getIndices();
   const earnings = EarningsDataService.getEarnings();
   const valuation = ValuationService.getValuation();
-  const rates = MacroDataService.getRates();
-  const fx = MacroDataService.getFx();
-  const commodities = MacroDataService.getCommodities();
+  const baseRates = MacroDataService.getRates();
+  const baseFx = MacroDataService.getFx();
+  const baseCommodities = MacroDataService.getCommodities();
   const flows = FlowDataService.getFlows();
   const macro = MacroDataService.getMacro();
+
+  // Merge live indices if available
+  const indices = baseIndices.map((idx) => {
+    if (!liveSummary) return idx;
+    const liveMatch = liveSummary.indices.find(
+      (l) => l.id.toLowerCase() === idx.id.toLowerCase() || l.name.toLowerCase() === idx.name.toLowerCase()
+    );
+    if (liveMatch) {
+      return {
+        ...idx,
+        current: liveMatch.current,
+        change: liveMatch.change,
+        changePercent: liveMatch.changePercent,
+        updatedAt: '실시간 (Live)',
+      };
+    }
+    return idx;
+  });
+
+  // Merge live rates
+  const rates = baseRates.map((r) => {
+    if (liveSummary && (r.code === 'US10Y' || r.name.includes('10년'))) {
+      return {
+        ...r,
+        value: liveSummary.macro.us10Y.current,
+        change: liveSummary.macro.us10Y.change,
+      };
+    }
+    return r;
+  });
+
+  // Merge live FX
+  const fx = baseFx.map((item) => {
+    if (liveSummary && item.pair === 'USD/KRW') {
+      return {
+        ...item,
+        value: liveSummary.macro.usdKrw.current,
+        change: liveSummary.macro.usdKrw.change,
+        changePercent: liveSummary.macro.usdKrw.changePercent,
+      };
+    }
+    return item;
+  });
+
+  // Merge live Commodities
+  const commodities = baseCommodities.map((item) => {
+    if (liveSummary && (item.code === 'WTI' || item.name.includes('WTI'))) {
+      return {
+        ...item,
+        value: liveSummary.macro.wti.current,
+        change: liveSummary.macro.wti.change,
+        changePercent: liveSummary.macro.wti.changePercent,
+      };
+    }
+    return item;
+  });
 
   const categories = [
     { id: 'all', label: '전체 보기 (A~H)' },
@@ -34,12 +100,27 @@ export const MarketDataView: React.FC = () => {
     <div className="space-y-6">
       {/* Category selector */}
       <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-xs">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-red-600" />
             <h2 className="text-sm font-bold text-slate-900 tracking-tight">수집 및 관리 시장 데이터 (A~H 카테고리)</h2>
           </div>
-          <span className="text-xs text-slate-500">기준일자: 2026.09.30 (데모 시뮬레이션)</span>
+          <div className="flex items-center gap-3 text-xs">
+            <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-semibold text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>{liveSummary ? '외부 금융 API 실시간 피드' : '기준 데이터'}</span>
+            </div>
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin text-red-600' : 'text-slate-500'}`} />
+                <span>{isRefreshing ? '조회중...' : '새로고침'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">

@@ -160,6 +160,42 @@ export const FIVE_YEAR_HISTORICAL_DATA: FiveYearMacroDataPoint[] = [
   { date: '2026.09', kospi: 3520, fwdPer: 10.2, us10Y: 4.18, usdKrw: 1385, eventLabel: '현재 분석 기준' },
 ];
 
+export interface LiveMarketSummary {
+  success: boolean;
+  source: string;
+  isLive: boolean;
+  updatedAt: string;
+  kospi: {
+    current: number;
+    change: number;
+    changePercent: number;
+    prevClose: number;
+    high: number;
+    low: number;
+    timestamp: number;
+  };
+  indices: {
+    id: string;
+    name: string;
+    symbol: string;
+    current: number;
+    change: number;
+    changePercent: number;
+  }[];
+  macro: {
+    us10Y: { name: string; symbol: string; current: number; change: number; changePercent: number; unit: string };
+    usdKrw: { name: string; symbol: string; current: number; change: number; changePercent: number; unit: string };
+    wti: { name: string; symbol: string; current: number; change: number; changePercent: number; unit: string };
+  };
+  stocks: {
+    ticker: string;
+    name: string;
+    current: number;
+    change: number;
+    changePercent: number;
+  }[];
+}
+
 export class MarketDataService {
   static getIndices(): IndexMetric[] {
     return INITIAL_INDICES;
@@ -175,6 +211,43 @@ export class MarketDataService {
 
   static getCurrentKospi(): number {
     return CURRENT_KOSPI_INDEX;
+  }
+
+  /**
+   * Fetches real-time financial market data from backend proxy
+   */
+  static async fetchLiveSummary(): Promise<LiveMarketSummary | null> {
+    try {
+      const res = await fetch('/api/market-summary');
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data: LiveMarketSummary = await res.json();
+      return data;
+    } catch (err) {
+      console.warn('Live financial API unreachable, falling back to cached baseline:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Fetches real historical price points for KOSPI
+   */
+  static async fetchLiveHistory(range: string = '6mo'): Promise<HistoricalPricePoint[] | null> {
+    try {
+      const res = await fetch(`/api/market-history?range=${encodeURIComponent(range)}`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.success && Array.isArray(data.points) && data.points.length > 0) {
+        return data.points;
+      }
+      return null;
+    } catch (err) {
+      console.warn('Failed to fetch live history:', err);
+      return null;
+    }
   }
 }
 
