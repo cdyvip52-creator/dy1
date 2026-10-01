@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+:root {
+  --primary-red: #dc2626;
+  --primary-red-hover: #b91c1c;
+  --primary-red-dark: #991b1b;
+  --primary-red-light: #fef2f2;
+  --primary-red-border: #fecaca;
+  --primary-red-ring: rgba(220, 38, 38, 0.25);
+}
+
+@layer base {
+  * {
+    accent-color: var(--primary-red);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Plus Jakarta Sans", Roboto, "Noto Sans KR", sans-serif;
+    color: #0f172a;
+    background-color: #fafaf9;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Custom Red Text Selection */
+  ::selection {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+
+  /* Global Tabular Numbers */
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus ring styling in red */
+  :focus-visible {
+    outline: 2px solid var(--primary-red);
+    outline-offset: 1px;
+  }
+
+  /* Sleek red-tinted scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #fca5a5;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #ef4444;
+  }
+}
+
+/* Custom Red Accent Utilities */
+.red-gradient-bar {
+  background: linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #ef4444 100%);
+}
+
+.red-subtle-glow {
+  box-shadow: 0 0 15px -3px rgba(220, 38, 38, 0.15);
+}
+
+.red-border-glow:hover {
+  border-color: #f87171;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2);
+}
+
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-page {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+}
+
